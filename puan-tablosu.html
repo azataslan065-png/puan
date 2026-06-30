@@ -34,6 +34,35 @@
   .fx{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
   .fx .side{display:flex;align-items:center;gap:8px;font-weight:600}
   .fx .sc{font-weight:800;font-size:16px}
+  /* clickable row */
+  tbody tr.clk{cursor:pointer}
+  tbody tr.clk:active{background:rgba(59,130,246,.12)}
+  /* modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:flex-end;justify-content:center;z-index:50}
+  .modal{background:var(--card);width:100%;max-width:680px;max-height:92vh;border-radius:18px 18px 0 0;overflow-y:auto;border:1px solid var(--line)}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--card)}
+  .x{background:transparent;border:none;color:var(--mut);font-size:18px;cursor:pointer}
+  .modal-tabs{display:flex;gap:6px;padding:12px 16px}
+  .modal-tabs button{flex:1;padding:9px;border:1px solid var(--line);background:transparent;color:var(--mut);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}
+  .modal-tabs button.active{background:var(--acc);color:#fff;border-color:var(--acc)}
+  .modal-body{padding:16px}
+  .info-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
+  .info-row span:first-child{color:var(--mut)}
+  /* pitch */
+  .pitch{position:relative;width:100%;aspect-ratio:2/3;background:linear-gradient(#1a4d2e,#15402a);border-radius:14px;border:2px solid rgba(255,255,255,.15);overflow:hidden;margin:0 auto}
+  .pitch .line{position:absolute;border:1px solid rgba(255,255,255,.25)}
+  .pitch .center{top:50%;left:0;right:0;height:0;border-top:1px solid rgba(255,255,255,.25)}
+  .pitch .circle{top:50%;left:50%;width:80px;height:80px;border-radius:50%;transform:translate(-50%,-50%)}
+  .pitch .box-top{top:0;left:25%;right:25%;height:14%;border-top:none}
+  .pitch .box-bot{bottom:0;left:25%;right:25%;height:14%;border-bottom:none}
+  .player-dot{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;width:54px}
+  .player-dot .av{width:38px;height:38px;border-radius:50%;background:#0d1320;border:2px solid #fff;object-fit:cover;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#fff}
+  .player-dot .nm{font-size:10px;margin-top:3px;background:rgba(0,0,0,.55);padding:1px 5px;border-radius:6px;white-space:nowrap;max-width:60px;overflow:hidden;text-overflow:ellipsis}
+  .player-dot .badge{position:absolute;top:-4px;right:6px;font-size:12px}
+  .squad-list h3{font-size:12px;color:var(--mut);text-transform:uppercase;margin:14px 0 6px}
+  .squad-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+  .squad-item .num{width:24px;text-align:center;color:var(--mut);font-weight:700}
+  .squad-item .pav{width:30px;height:30px;border-radius:50%;object-fit:cover;background:#0d1320}
 </style>
 </head>
 <body>
@@ -59,6 +88,24 @@
   <div id="view-results" style="display:none"></div>
 </div>
 
+<!-- TAKIM DETAY MODAL -->
+<div id="teamModal" class="modal-bg" style="display:none">
+  <div class="modal">
+    <div class="modal-head">
+      <div id="tmTitle" class="team" style="font-size:16px"></div>
+      <button id="tmClose" class="x">✕</button>
+    </div>
+    <div class="modal-tabs">
+      <button data-mt="info" class="active">Bilgi</button>
+      <button data-mt="pitch">Kadro & Saha</button>
+      <button data-mt="players">Oyuncular</button>
+    </div>
+    <div id="mt-info" class="modal-body"></div>
+    <div id="mt-pitch" class="modal-body" style="display:none"></div>
+    <div id="mt-players" class="modal-body" style="display:none"></div>
+  </div>
+</div>
+
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -69,7 +116,7 @@ const SUPABASE_ANON_KEY = 'sb_publishable_cpslsRNivc4BTU95uovlZg_LXGZBRuB';
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const $ = id => document.getElementById(id);
-let LEAGUE_ID = null, teams = [], matches = [], prevPts = {};
+let LEAGUE_ID = null, teams = [], matches = [], players = [], prevPts = {};
 
 async function init(){
   const { data:lg } = await sb.from('leagues').select('*').limit(1).single();
@@ -80,12 +127,14 @@ async function init(){
 }
 
 async function refreshAll(){
-  const [{data:t},{data:m}] = await Promise.all([
+  const [{data:t},{data:m},{data:p}] = await Promise.all([
     sb.from('teams').select('*').eq('league_id',LEAGUE_ID),
-    sb.from('matches').select('*').eq('league_id',LEAGUE_ID).order('week').order('kickoff_at')
+    sb.from('matches').select('*').eq('league_id',LEAGUE_ID).order('week').order('kickoff_at'),
+    sb.from('players').select('*')
   ]);
-  teams = t||[]; matches = m||[];
+  teams = t||[]; matches = m||[]; players = p||[];
   renderStandings(); renderFixtures(); renderResults();
+  if(openTeamId) renderModal(openTeamId); // açık modal varsa tazele
 }
 
 const tName = id => teams.find(t=>t.id===id)?.name || '?';
@@ -110,7 +159,7 @@ function renderStandings(){
   if(!rows.length){ $('standingsBody').innerHTML='<tr><td colspan="10" class="empty">Henüz takım yok</td></tr>'; return; }
   $('standingsBody').innerHTML = rows.map((r,i)=>{
     const changed = prevPts[r.team_id]!==undefined && prevPts[r.team_id]!==r.Pts;
-    return `<tr class="${changed?'flash':''}">
+    return `<tr class="clk ${changed?'flash':''}" data-team="${r.team_id}">
       <td class="rank">${i+1}</td>
       <td><div class="team">${r.logo_url?`<img class="logo" src="${r.logo_url}">`:''}${r.name}</div></td>
       <td>${r.P}</td><td>${r.W}</td><td>${r.D}</td><td>${r.L}</td>
@@ -118,6 +167,7 @@ function renderStandings(){
     </tr>`;
   }).join('');
   prevPts = {}; rows.forEach(r=>prevPts[r.team_id]=r.Pts);
+  document.querySelectorAll('tr[data-team]').forEach(tr=>tr.onclick=()=>openModal(tr.dataset.team));
 }
 
 const fmt = d => d? new Date(d).toLocaleString('tr-TR',{weekday:'short',day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'';
@@ -140,6 +190,89 @@ function renderResults(){
     : '<div class="empty">Oynanmış maç yok</div>';
 }
 
+// ================= TAKIM DETAY MODAL + SAHA =================
+let openTeamId = null;
+
+// Formasyon koordinatları: her oyuncu {x%, y%} - kaleci altta (y büyük), forvet üstte
+const FORMATIONS = {
+  '4-4-2': [[50,90],[15,72],[38,75],[62,75],[85,72],[15,48],[38,50],[62,50],[85,48],[38,22],[62,22]],
+  '4-3-3': [[50,90],[15,72],[38,75],[62,75],[85,72],[30,52],[50,55],[70,52],[20,25],[50,20],[80,25]],
+  '4-2-3-1':[[50,90],[15,72],[38,75],[62,75],[85,72],[38,58],[62,58],[20,38],[50,38],[80,38],[50,18]],
+  '3-5-2': [[50,90],[28,73],[50,75],[72,73],[12,52],[35,52],[50,55],[65,52],[88,52],[38,24],[62,24]],
+  '3-4-3': [[50,90],[28,73],[50,75],[72,73],[15,52],[38,52],[62,52],[85,52],[22,24],[50,20],[78,24]],
+  '5-3-2': [[50,90],[10,70],[30,74],[50,75],[70,74],[90,70],[30,50],[50,52],[70,50],[38,24],[62,24]],
+};
+
+function openModal(teamId){
+  openTeamId = teamId;
+  $('teamModal').style.display='flex';
+  // ilk sekme: bilgi
+  document.querySelectorAll('.modal-tabs button').forEach(x=>x.classList.remove('active'));
+  document.querySelector('.modal-tabs button[data-mt="info"]').classList.add('active');
+  ['info','pitch','players'].forEach(s=>$('mt-'+s).style.display='none');
+  $('mt-info').style.display='';
+  renderModal(teamId);
+}
+function closeModal(){ $('teamModal').style.display='none'; openTeamId=null; }
+$('tmClose').onclick = closeModal;
+$('teamModal').onclick = e=>{ if(e.target.id==='teamModal') closeModal(); };
+
+document.querySelectorAll('.modal-tabs button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('.modal-tabs button').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    ['info','pitch','players'].forEach(s=>$('mt-'+s).style.display='none');
+    $('mt-'+b.dataset.mt).style.display='';
+  };
+});
+
+function renderModal(teamId){
+  const t = teams.find(x=>x.id===teamId); if(!t) return;
+  $('tmTitle').innerHTML = `${t.logo_url?`<img class="logo" src="${t.logo_url}">`:''}${t.name}`;
+
+  // BİLGİ
+  $('mt-info').innerHTML = `
+    <div class="info-row"><span>Stadyum</span><span>${t.stadium||'—'}</span></div>
+    <div class="info-row"><span>Kuruluş</span><span>${t.founded||'—'}</span></div>
+    <div class="info-row"><span>Formasyon</span><span>${t.formation||'4-4-2'}</span></div>`;
+
+  // KADRO & SAHA
+  const squad = players.filter(p=>p.team_id===teamId);
+  const starters = squad.filter(p=>p.is_starter).slice(0,11);
+  const coords = FORMATIONS[t.formation] || FORMATIONS['4-4-2'];
+  const badge = s => s==='injured'?'<span class="badge">🤕</span>':s==='suspended'?'<span class="badge">⛔</span>':'';
+  const dots = starters.map((p,i)=>{
+    const c = coords[i] || [50,50];
+    const av = p.photo_url? `<img class="av" src="${p.photo_url}">` : `<div class="av">${p.number??'?'}</div>`;
+    return `<div class="player-dot" style="left:${c[0]}%;top:${c[1]}%">${av}${badge(p.status)}<div class="nm">${p.name}</div></div>`;
+  }).join('');
+  $('mt-pitch').innerHTML = `
+    <div style="text-align:center;color:var(--mut);font-size:13px;margin-bottom:10px">Formasyon: ${t.formation||'4-4-2'} • İlk 11: ${starters.length}/11</div>
+    <div class="pitch">
+      <div class="line center"></div>
+      <div class="line circle"></div>
+      <div class="line box-top"></div>
+      <div class="line box-bot"></div>
+      ${dots || '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.6)">İlk 11 atanmamış</div>'}
+    </div>`;
+
+  // OYUNCULAR
+  const order = {GK:0,DEF:1,MID:2,FWD:3};
+  const sorted = [...squad].sort((a,b)=> (order[a.position]??9)-(order[b.position]??9) || (a.number||99)-(b.number||99));
+  const grp = (pos,label) => {
+    const arr = sorted.filter(p=>p.position===pos);
+    if(!arr.length) return '';
+    return `<h3>${label}</h3>`+arr.map(p=>{
+      const av = p.photo_url? `<img class="pav" src="${p.photo_url}">` : `<div class="pav" style="display:flex;align-items:center;justify-content:center;font-size:11px">${p.number??'?'}</div>`;
+      const st = p.status==='injured'?' 🤕':p.status==='suspended'?' ⛔':'';
+      return `<div class="squad-item"><span class="num">${p.number??'—'}</span>${av}<span>${p.name}${st}</span>${p.is_starter?'<span style="margin-left:auto;font-size:11px;color:var(--acc)">İlk 11</span>':''}</div>`;
+    }).join('');
+  };
+  $('mt-players').innerHTML = `<div class="squad-list">${grp('GK','Kaleci')}${grp('DEF','Defans')}${grp('MID','Orta Saha')}${grp('FWD','Forvet')}</div>`
+    || '<div class="empty">Oyuncu yok</div>';
+  if(!squad.length) $('mt-players').innerHTML='<div class="empty">Oyuncu eklenmemiş</div>';
+}
+
 // ---- TABS ----
 document.querySelectorAll('.tabs button').forEach(b=>{
   b.onclick=()=>{
@@ -156,6 +289,7 @@ function subscribe(){
     .on('postgres_changes',{event:'*',schema:'public',table:'matches'}, refreshAll)
     .on('postgres_changes',{event:'*',schema:'public',table:'teams'},   refreshAll)
     .on('postgres_changes',{event:'*',schema:'public',table:'leagues'}, refreshAll)
+    .on('postgres_changes',{event:'*',schema:'public',table:'players'}, refreshAll)
     .subscribe(st=>{ $('liveTxt').textContent = st==='SUBSCRIBED'?'Canlı bağlı':'Bağlanıyor…'; });
 }
 

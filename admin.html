@@ -59,6 +59,7 @@
   <div class="wrap">
     <div class="tabs">
       <button data-tab="teams" class="active">👕 Takımlar</button>
+      <button data-tab="squad">🧍 Kadro</button>
       <button data-tab="fixtures">📅 Fikstür</button>
       <button data-tab="scores">🏆 Skorlar</button>
     </div>
@@ -82,6 +83,58 @@
         <h2>Takımlar</h2>
         <table><thead><tr><th>Logo</th><th>Ad</th><th>Stadyum</th><th></th></tr></thead>
         <tbody id="teamRows"></tbody></table>
+      </div>
+    </div>
+
+    <!-- KADRO -->
+    <div id="tab-squad" class="hide">
+      <div class="card">
+        <h2>Kadro Yönetimi</h2>
+        <label>Takım Seç</label>
+        <select id="sqTeam"></select>
+        <div id="sqFormationWrap" style="margin-top:12px;display:none">
+          <label>Formasyon</label>
+          <select id="sqFormation">
+            <option value="4-4-2">4-4-2</option>
+            <option value="4-3-3">4-3-3</option>
+            <option value="4-2-3-1">4-2-3-1</option>
+            <option value="3-5-2">3-5-2</option>
+            <option value="3-4-3">3-4-3</option>
+            <option value="5-3-2">5-3-2</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="card" id="sqAddCard" style="display:none">
+        <h2>Oyuncu Ekle</h2>
+        <div class="row">
+          <div><label>İsim</label><input id="pName" placeholder="Oyuncu adı"></div>
+          <div><label>Numara</label><input id="pNumber" type="number" placeholder="10"></div>
+        </div>
+        <div class="row">
+          <div><label>Pozisyon</label>
+            <select id="pPosition">
+              <option value="GK">Kaleci (GK)</option>
+              <option value="DEF">Defans (DEF)</option>
+              <option value="MID">Orta Saha (MID)</option>
+              <option value="FWD">Forvet (FWD)</option>
+            </select>
+          </div>
+          <div><label>İlk 11?</label>
+            <select id="pStarter"><option value="false">Yedek</option><option value="true">İlk 11</option></select>
+          </div>
+        </div>
+        <label>Fotoğraf (opsiyonel)</label>
+        <input id="pPhoto" type="file" accept="image/*">
+        <div style="height:12px"></div>
+        <button id="addPlayer">Oyuncu Ekle</button>
+        <div id="playerMsg" class="msg"></div>
+      </div>
+
+      <div class="card" id="sqListCard" style="display:none">
+        <h2>Oyuncular</h2>
+        <table><thead><tr><th>#</th><th>İsim</th><th>Poz</th><th>Durum</th><th>Tip</th><th></th></tr></thead>
+        <tbody id="playerRows"></tbody></table>
       </div>
     </div>
 
@@ -165,7 +218,7 @@ document.querySelectorAll('.tabs button').forEach(b=>{
   b.onclick = ()=>{
     document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('active'));
     b.classList.add('active');
-    ['teams','fixtures','scores'].forEach(t=>$('tab-'+t).classList.add('hide'));
+    ['teams','squad','fixtures','scores'].forEach(t=>$('tab-'+t).classList.add('hide'));
     $('tab-'+b.dataset.tab).classList.remove('hide');
   };
 });
@@ -209,6 +262,75 @@ async function loadTeams(){
   // fikstür select'lerini doldur
   const opts = '<option value="">Seç...</option>'+teamsCache.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
   $('mHome').innerHTML = opts; $('mAway').innerHTML = opts;
+  // kadro select'i doldur
+  $('sqTeam').innerHTML = opts;
+}
+
+// ================= KADRO YÖNETİMİ =================
+let currentSquadTeam = null;
+
+$('sqTeam').onchange = async ()=>{
+  currentSquadTeam = $('sqTeam').value;
+  const show = !!currentSquadTeam;
+  $('sqFormationWrap').style.display = show?'block':'none';
+  $('sqAddCard').style.display = show?'block':'none';
+  $('sqListCard').style.display = show?'block':'none';
+  if(!show) return;
+  const t = teamsCache.find(x=>x.id===currentSquadTeam);
+  $('sqFormation').value = t?.formation || '4-4-2';
+  await loadPlayers();
+};
+
+$('sqFormation').onchange = async ()=>{
+  if(!currentSquadTeam) return;
+  await sb.from('teams').update({ formation:$('sqFormation').value }).eq('id',currentSquadTeam);
+  const t = teamsCache.find(x=>x.id===currentSquadTeam); if(t) t.formation=$('sqFormation').value;
+};
+
+$('addPlayer').onclick = async ()=>{
+  if(!currentSquadTeam) return;
+  const name = $('pName').value.trim();
+  if(!name) return showMsg($('playerMsg'),'İsim gerekli',false);
+  let photo_url = null;
+  if($('pPhoto').files[0]){
+    const f=$('pPhoto').files[0], ext=f.name.split('.').pop(), path=`players/${crypto.randomUUID()}.${ext}`;
+    const { error:e } = await sb.storage.from('media').upload(path,f);
+    if(!e){ photo_url = sb.storage.from('media').getPublicUrl(path).data.publicUrl; }
+  }
+  const { error } = await sb.from('players').insert({
+    team_id:currentSquadTeam, name, number:parseInt($('pNumber').value)||null,
+    position:$('pPosition').value, is_starter:$('pStarter').value==='true', photo_url
+  });
+  if(error) return showMsg($('playerMsg'),error.message,false);
+  $('pName').value=$('pNumber').value=''; $('pPhoto').value='';
+  showMsg($('playerMsg'),'Oyuncu eklendi');
+  loadPlayers();
+};
+
+async function loadPlayers(){
+  const { data } = await sb.from('players').select('*').eq('team_id',currentSquadTeam).order('number');
+  const list = data||[];
+  const statusLabel = s => s==='injured'?'🤕 Sakat':s==='suspended'?'⛔ Cezalı':'✅ Hazır';
+  const nextStatus = s => s==='ok'?'injured':s==='injured'?'suspended':'ok';
+  $('playerRows').innerHTML = list.map(p=>`
+    <tr>
+      <td>${p.number??'—'}</td>
+      <td>${p.photo_url?`<img class="logo" src="${p.photo_url}">`:''} ${p.name}</td>
+      <td>${p.position||'—'}</td>
+      <td><button class="ghost" data-st="${p.id}" data-cur="${p.status}">${statusLabel(p.status)}</button></td>
+      <td><button class="ghost" data-starter="${p.id}" data-val="${p.is_starter}">${p.is_starter?'İlk 11':'Yedek'}</button></td>
+      <td><button class="danger" data-delp="${p.id}">Sil</button></td>
+    </tr>`).join('') || '<tr><td colspan="6" style="color:var(--mut)">Oyuncu yok</td></tr>';
+
+  document.querySelectorAll('[data-delp]').forEach(b=>b.onclick=async()=>{
+    if(confirm('Oyuncu silinsin mi?')){ await sb.from('players').delete().eq('id',b.dataset.delp); loadPlayers(); }
+  });
+  document.querySelectorAll('[data-st]').forEach(b=>b.onclick=async()=>{
+    await sb.from('players').update({ status:nextStatus(b.dataset.cur) }).eq('id',b.dataset.st); loadPlayers();
+  });
+  document.querySelectorAll('[data-starter]').forEach(b=>b.onclick=async()=>{
+    await sb.from('players').update({ is_starter: b.dataset.val!=='true' }).eq('id',b.dataset.starter); loadPlayers();
+  });
 }
 
 // ---- FİKSTÜR ----
