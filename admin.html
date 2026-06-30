@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin Paneli</title>
+<style>
+  :root{ --bg:#0f1419; --card:#1a2230; --line:#2a3548; --txt:#e6edf3; --mut:#8b98a9; --acc:#3b82f6; --ok:#22c55e; --err:#ef4444; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--txt)}
+  header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10}
+  header h1{font-size:17px;margin:0}
+  .wrap{max-width:980px;margin:0 auto;padding:18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+  .card h2{margin:0 0 12px;font-size:15px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
+  label{display:block;font-size:12px;color:var(--mut);margin:8px 0 4px}
+  input,select{width:100%;padding:10px 12px;background:#0d1320;border:1px solid var(--line);border-radius:9px;color:var(--txt);font-size:14px}
+  button{cursor:pointer;border:none;border-radius:9px;padding:10px 16px;font-size:14px;font-weight:600;background:var(--acc);color:#fff}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--txt)}
+  button.danger{background:var(--err)}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .row>*{flex:1;min-width:120px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:8px;border-bottom:1px solid var(--line);text-align:left}
+  th{color:var(--mut);font-weight:600}
+  .pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;background:#0d1320;border:1px solid var(--line)}
+  .hide{display:none}
+  .login{max-width:380px;margin:80px auto}
+  .msg{padding:10px;border-radius:8px;margin-top:10px;font-size:13px;display:none}
+  .msg.show{display:block}
+  .msg.ok{background:rgba(34,197,94,.15);color:var(--ok)}
+  .msg.err{background:rgba(239,68,68,.15);color:var(--err)}
+  .tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+  .tabs button{background:transparent;border:1px solid var(--line);color:var(--mut)}
+  .tabs button.active{background:var(--acc);color:#fff;border-color:var(--acc)}
+  img.logo{width:26px;height:26px;border-radius:6px;object-fit:cover;background:#0d1320;vertical-align:middle}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginView" class="login">
+  <div class="card">
+    <h2>Admin Girişi</h2>
+    <label>Şifre</label>
+    <input id="password" type="password" placeholder="••••••••" autofocus>
+    <div style="height:12px"></div>
+    <button id="loginBtn" style="width:100%">Giriş Yap</button>
+    <div id="loginMsg" class="msg"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appView" class="hide">
+  <header>
+    <h1>🛠️ Admin Paneli</h1>
+    <div><span id="who" class="pill"></span> <button class="ghost" id="logoutBtn">Çıkış</button></div>
+  </header>
+  <div class="wrap">
+    <div class="tabs">
+      <button data-tab="teams" class="active">👕 Takımlar</button>
+      <button data-tab="fixtures">📅 Fikstür</button>
+      <button data-tab="scores">🏆 Skorlar</button>
+    </div>
+
+    <!-- TAKIMLAR -->
+    <div id="tab-teams">
+      <div class="card">
+        <h2>Takım Ekle</h2>
+        <div class="row">
+          <div><label>Takım Adı</label><input id="tName" placeholder="Galatasaray"></div>
+          <div><label>Stadyum</label><input id="tStadium" placeholder="RAMS Park"></div>
+          <div><label>Kuruluş</label><input id="tFounded" placeholder="1905"></div>
+        </div>
+        <label>Logo (opsiyonel)</label>
+        <input id="tLogo" type="file" accept="image/*">
+        <div style="height:12px"></div>
+        <button id="addTeam">Ekle</button>
+        <div id="teamMsg" class="msg"></div>
+      </div>
+      <div class="card">
+        <h2>Takımlar</h2>
+        <table><thead><tr><th>Logo</th><th>Ad</th><th>Stadyum</th><th></th></tr></thead>
+        <tbody id="teamRows"></tbody></table>
+      </div>
+    </div>
+
+    <!-- FİKSTÜR -->
+    <div id="tab-fixtures" class="hide">
+      <div class="card">
+        <h2>Maç Ekle</h2>
+        <div class="row">
+          <div><label>Hafta</label><input id="mWeek" type="number" placeholder="1"></div>
+          <div><label>Tarih/Saat</label><input id="mDate" type="datetime-local"></div>
+        </div>
+        <div class="row">
+          <div><label>Ev Sahibi</label><select id="mHome"></select></div>
+          <div><label>Deplasman</label><select id="mAway"></select></div>
+        </div>
+        <div style="height:12px"></div>
+        <button id="addMatch">Maç Ekle</button>
+        <div id="matchMsg" class="msg"></div>
+      </div>
+      <div class="card">
+        <h2>Fikstür</h2>
+        <table><thead><tr><th>Hf</th><th>Ev</th><th>Dep</th><th>Tarih</th><th></th></tr></thead>
+        <tbody id="fixtureRows"></tbody></table>
+      </div>
+    </div>
+
+    <!-- SKORLAR -->
+    <div id="tab-scores" class="hide">
+      <div class="card">
+        <h2>Skor Girişi</h2>
+        <p style="color:var(--mut);font-size:13px;margin-top:0">Skoru kaydedince puan durumu otomatik güncellenir.</p>
+        <table><thead><tr><th>Hf</th><th>Ev</th><th>Skor</th><th>Dep</th><th>Durum</th><th></th></tr></thead>
+        <tbody id="scoreRows"></tbody></table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+// ====== BURAYA KENDİ DEĞERLERİNİ GİR ======
+const SUPABASE_URL = 'https://dyhfywasghsbhpfxigmj.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_cpslsRNivc4BTU95uovlZg_LXGZBRuB';
+// ==========================================
+
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let LEAGUE_ID = null;
+let teamsCache = [];
+
+const $ = id => document.getElementById(id);
+const showMsg = (el, text, ok=true)=>{ el.textContent=text; el.className='msg show '+(ok?'ok':'err'); setTimeout(()=>el.className='msg',3000); };
+
+// ---- AUTH ----
+const ADMIN_EMAIL = 'admin@admin.com'; // Supabase'de bu hesabı oluştur (şifre: admin123)
+async function checkSession(){
+  const { data:{ session } } = await sb.auth.getSession();
+  if(session){ enterApp(session.user.email); } else { $('loginView').classList.remove('hide'); $('appView').classList.add('hide'); }
+}
+$('loginBtn').onclick = async ()=>{
+  const { error } = await sb.auth.signInWithPassword({ email:ADMIN_EMAIL, password:$('password').value });
+  if(error){ showMsg($('loginMsg'), 'Şifre hatalı', false); }
+  else checkSession();
+};
+$('password').addEventListener('keydown', e=>{ if(e.key==='Enter') $('loginBtn').click(); });
+$('logoutBtn').onclick = async ()=>{ await sb.auth.signOut(); location.reload(); };
+
+async function enterApp(email){
+  $('loginView').classList.add('hide');
+  $('appView').classList.remove('hide');
+  $('who').textContent = email;
+  const { data:lg } = await sb.from('leagues').select('id').limit(1).single();
+  LEAGUE_ID = lg?.id;
+  await loadTeams();
+  await loadFixtures();
+}
+
+// ---- TABS ----
+document.querySelectorAll('.tabs button').forEach(b=>{
+  b.onclick = ()=>{
+    document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    ['teams','fixtures','scores'].forEach(t=>$('tab-'+t).classList.add('hide'));
+    $('tab-'+b.dataset.tab).classList.remove('hide');
+  };
+});
+
+// ---- STORAGE: logo yükle ----
+async function uploadImage(file){
+  if(!file) return null;
+  const ext = file.name.split('.').pop();
+  const path = `teams/${crypto.randomUUID()}.${ext}`;
+  const { error } = await sb.storage.from('media').upload(path, file);
+  if(error){ console.error(error); return null; }
+  const { data } = sb.storage.from('media').getPublicUrl(path);
+  return data.publicUrl;
+}
+
+// ---- TAKIMLAR ----
+$('addTeam').onclick = async ()=>{
+  const name = $('tName').value.trim();
+  if(!name) return showMsg($('teamMsg'),'İsim gerekli',false);
+  const logo_url = await uploadImage($('tLogo').files[0]);
+  const { error } = await sb.from('teams').insert({
+    league_id: LEAGUE_ID, name, stadium:$('tStadium').value.trim(),
+    founded:$('tFounded').value.trim(), logo_url
+  });
+  if(error) return showMsg($('teamMsg'),error.message,false);
+  $('tName').value=$('tStadium').value=$('tFounded').value=''; $('tLogo').value='';
+  showMsg($('teamMsg'),'Takım eklendi');
+  loadTeams();
+};
+
+async function loadTeams(){
+  const { data } = await sb.from('teams').select('*').eq('league_id',LEAGUE_ID).order('name');
+  teamsCache = data||[];
+  $('teamRows').innerHTML = teamsCache.map(t=>`
+    <tr><td>${t.logo_url?`<img class="logo" src="${t.logo_url}">`:'—'}</td>
+    <td>${t.name}</td><td>${t.stadium||'—'}</td>
+    <td><button class="danger" data-del="${t.id}">Sil</button></td></tr>`).join('') || '<tr><td colspan="4" style="color:var(--mut)">Henüz takım yok</td></tr>';
+  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
+    if(confirm('Takım silinsin mi?')){ await sb.from('teams').delete().eq('id',b.dataset.del); loadTeams(); }
+  });
+  // fikstür select'lerini doldur
+  const opts = '<option value="">Seç...</option>'+teamsCache.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
+  $('mHome').innerHTML = opts; $('mAway').innerHTML = opts;
+}
+
+// ---- FİKSTÜR ----
+$('addMatch').onclick = async ()=>{
+  const home=$('mHome').value, away=$('mAway').value;
+  if(!home||!away) return showMsg($('matchMsg'),'İki takım da seçilmeli',false);
+  if(home===away) return showMsg($('matchMsg'),'Aynı takım olamaz',false);
+  const { error } = await sb.from('matches').insert({
+    league_id:LEAGUE_ID, week:parseInt($('mWeek').value)||null,
+    home_team_id:home, away_team_id:away,
+    kickoff_at: $('mDate').value? new Date($('mDate').value).toISOString():null
+  });
+  if(error) return showMsg($('matchMsg'),error.message,false);
+  showMsg($('matchMsg'),'Maç eklendi'); loadFixtures();
+};
+
+async function loadFixtures(){
+  const { data } = await sb.from('matches').select('*').eq('league_id',LEAGUE_ID).order('week').order('kickoff_at');
+  const tName = id => teamsCache.find(t=>t.id===id)?.name || '?';
+  const fmt = d => d? new Date(d).toLocaleString('tr-TR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
+  $('fixtureRows').innerHTML = (data||[]).map(m=>`
+    <tr><td>${m.week??'—'}</td><td>${tName(m.home_team_id)}</td><td>${tName(m.away_team_id)}</td>
+    <td>${fmt(m.kickoff_at)}</td>
+    <td><button class="danger" data-delm="${m.id}">Sil</button></td></tr>`).join('') || '<tr><td colspan="5" style="color:var(--mut)">Maç yok</td></tr>';
+  document.querySelectorAll('[data-delm]').forEach(b=>b.onclick=async()=>{
+    if(confirm('Maç silinsin mi?')){ await sb.from('matches').delete().eq('id',b.dataset.delm); loadFixtures(); }
+  });
+  // skor tablosu
+  $('scoreRows').innerHTML = (data||[]).map(m=>`
+    <tr><td>${m.week??'—'}</td><td>${tName(m.home_team_id)}</td>
+    <td style="white-space:nowrap">
+      <input style="width:48px;display:inline" type="number" id="hs_${m.id}" value="${m.home_score??''}">
+      :
+      <input style="width:48px;display:inline" type="number" id="as_${m.id}" value="${m.away_score??''}">
+    </td>
+    <td>${tName(m.away_team_id)}</td>
+    <td><span class="pill">${m.status}</span></td>
+    <td><button data-save="${m.id}">Kaydet</button></td></tr>`).join('') || '<tr><td colspan="6" style="color:var(--mut)">Maç yok</td></tr>';
+  document.querySelectorAll('[data-save]').forEach(b=>b.onclick=async()=>{
+    const id=b.dataset.save;
+    const hs=$('hs_'+id).value, as=$('as_'+id).value;
+    const { error } = await sb.from('matches').update({
+      home_score: hs===''?null:parseInt(hs),
+      away_score: as===''?null:parseInt(as),
+      status: (hs!==''&&as!=='')?'finished':'scheduled'
+    }).eq('id',id);
+    b.textContent = error? 'Hata' : '✓ Kaydedildi';
+    setTimeout(()=>b.textContent='Kaydet',1500);
+    if(!error) loadFixtures();
+  });
+}
+
+checkSession();
+</script>
+</body>
+</html>
